@@ -16,6 +16,7 @@ def _csv_values(value: str | None) -> tuple[str, ...]:
 class Settings:
     llm_api_keys: tuple[str, ...]
     llm_model: str
+    default_system_prompt: str
     database_url: str
     allowed_origins: tuple[str, ...]
     cache_enabled: bool
@@ -26,6 +27,9 @@ def get_settings() -> Settings:
     return Settings(
         llm_api_keys=_csv_values(os.getenv("LLM_API_KEYS")),
         llm_model=os.getenv("LLM_MODEL", "groq/openai/gpt-oss-120b"),
+        default_system_prompt=os.getenv(
+            "DEFAULT_SYSTEM_PROMPT", "You are a helpful assistant."
+        ),
         database_url=os.getenv("DATABASE_URL", "sqlite:///./data/app.db"),
         allowed_origins=_csv_values(
             os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")

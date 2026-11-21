@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from .config import get_settings
 from .db import initialize_database
+from .routes import router as chat_router
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ async def lifespan(_: FastAPI):
 
 settings = get_settings()
 app = FastAPI(title="ModelSwitch Chat", lifespan=lifespan)
+app.include_router(chat_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.allowed_origins),
