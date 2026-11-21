@@ -15,16 +15,13 @@ class LLMResult:
     output_tokens: int
 
 
-async def generate_reply(messages: list[dict[str, str]]) -> LLMResult:
-    """Call the configured model with only the first configured API key."""
+async def generate_reply(messages: list[dict[str, str]], api_key: str) -> LLMResult:
+    """Call the configured model using the supplied key for one attempt."""
     settings = get_settings()
-    if not settings.llm_api_keys:
-        raise RuntimeError("No LLM API key is configured")
-
     response: Any = await acompletion(
         model=settings.llm_model,
         messages=messages,
-        api_key=settings.llm_api_keys[0],
+        api_key=api_key,
     )
     reply = response.choices[0].message.content
     usage = response.usage

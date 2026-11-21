@@ -3,19 +3,23 @@
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 
 from .config import get_settings
 from .db import get_session_messages, save_exchange
-from .llm import generate_reply
+from .llm import LLMResult, generate_reply
 from .schemas import ChatMetadata, ChatRequest, ChatResponse, SessionMessagesResponse
+from .simulate import parse_simulated_failures
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
+async def chat(
+    request: ChatRequest,
+    simulate_failure: str | None = Header(default=None, alias="X-Simulate-Failure"),
+) -> ChatResponse:
     started_at = time.perf_counter()
     settings = get_settings()
     history = get_session_messages(request.session_id)
@@ -25,12 +29,30 @@ async def chat(request: ChatRequest) -> ChatResponse:
     )
     messages.append({"role": "user", "content": request.message})
 
-    try:
-        result = await generate_reply(messages)
-    except Exception as exc:
-        logger.warning("LLM inference failed (%s)", type(exc).__name__)
+    simulated_failures = parse_simulated_failures(
+        simulate_failure, enabled=settings.enable_failure_simulation
+    )
+    result: LLMResult | None = None
+    successful_key_id: str | None = None
+    fallback_attempts = 0
+    for key_number, api_key in enumerate(settings.llm_api_keys, start=1):
+        key_id = f"key_{key_number}"
+        try:
+            simulated_status = simulated_failures.get(
+                key_id, simulated_failures.get("*")
+            )
+            if simulated_status is not None:
+                raise RuntimeError(f"Simulated provider failure ({simulated_status})")
+            result = await generate_reply(messages, api_key)
+            successful_key_id = key_id
+            break
+        except Exception as exc:
+            logger.warning("LLM attempt failed for %s (%s)", key_id, type(exc).__name__)
+            fallback_attempts += 1
+
+    if result is None or successful_key_id is None:
         raise HTTPException(
-            status_code=502, detail="LLM provider request failed"
+            status_code=503, detail="all providers unavailable"
         ) from None
     latency_ms = int((time.perf_counter() - started_at) * 1000)
 
@@ -40,8 +62,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
         latency_ms=latency_ms,
         input_tokens=result.input_tokens,
         output_tokens=result.output_tokens,
-        key_id="key_1",
-        fallback_attempts=0,
+        key_id=successful_key_id,
+        fallback_attempts=fallback_attempts,
     )
     save_exchange(
         request.session_id,

@@ -20,6 +20,7 @@ class Settings:
     database_url: str
     allowed_origins: tuple[str, ...]
     cache_enabled: bool
+    enable_failure_simulation: bool
 
 
 def get_settings() -> Settings:
@@ -35,5 +36,9 @@ def get_settings() -> Settings:
             os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
         ),
         cache_enabled=os.getenv("CACHE_ENABLED", "true").strip().lower()
+        in {"1", "true", "yes", "on"},
+        enable_failure_simulation=os.getenv("ENABLE_FAILURE_SIMULATION", "false")
+        .strip()
+        .lower()
         in {"1", "true", "yes", "on"},
     )

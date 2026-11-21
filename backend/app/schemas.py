@@ -21,8 +21,8 @@ class ChatMetadata(BaseModel):
     latency_ms: int
     input_tokens: int
     output_tokens: int
-    key_id: Literal["key_1"]
-    fallback_attempts: Literal[0]
+    key_id: str
+    fallback_attempts: int = Field(ge=0)
 
 
 class ChatResponse(BaseModel):
