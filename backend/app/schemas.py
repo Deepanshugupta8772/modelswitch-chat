@@ -16,12 +16,12 @@ class ChatRequest(BaseModel):
 
 
 class ChatMetadata(BaseModel):
-    resolution_source: Literal["LIVE_INFERENCE"]
+    resolution_source: Literal["LIVE_INFERENCE", "LLM_CACHE"]
     model: str
     latency_ms: int
     input_tokens: int
     output_tokens: int
-    key_id: str
+    key_id: str | None
     fallback_attempts: int = Field(ge=0)
 
 
